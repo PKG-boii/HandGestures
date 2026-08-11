@@ -1,1 +1,4 @@
 
+mediapipe
+opencv-python
+numpy
