@@ -174,3 +174,107 @@ def get_finger_states(landmarks):
     }
 
     return states
+
+
+def get_thumb_direction(landmarks):
+    """
+    Determines whether the thumb is pointing
+    mostly upward or downward relative to the image.
+
+    Returns:
+        "UP"
+        "DOWN"
+        "SIDE"
+    """
+
+    thumb_tip = landmarks[THUMB_TIP]
+    thumb_mcp = landmarks[THUMB_MCP]
+
+    dy = thumb_tip.y - thumb_mcp.y
+
+    # In image coordinates:
+    # smaller y = higher on screen
+    if dy < -0.12:
+        return "UP"
+
+    if dy > 0.12:
+        return "DOWN"
+
+    return "SIDE"
+
+
+def is_pinching(landmarks):
+    """
+    Detects whether the thumb and index finger
+    are close together.
+
+    Uses palm size to normalize the distance.
+    """
+
+    thumb_tip = landmarks[THUMB_TIP]
+    index_tip = landmarks[INDEX_TIP]
+
+    wrist = landmarks[WRIST]
+    middle_mcp = landmarks[MIDDLE_MCP]
+
+    pinch_distance = distance(
+        thumb_tip,
+        index_tip
+    )
+
+    palm_size = distance(
+        wrist,
+        middle_mcp
+    )
+
+    if palm_size == 0:
+        return False
+
+    normalized_distance = (
+        pinch_distance / palm_size
+    )
+
+    return normalized_distance < 0.35
+
+
+def is_ok_gesture(landmarks, finger_states):
+    """
+    Detects the OK gesture.
+
+    Thumb and index form a small circle,
+    while the other three fingers are extended.
+    """
+
+    if not finger_states["middle"]:
+        return False
+
+    if not finger_states["ring"]:
+        return False
+
+    if not finger_states["pinky"]:
+        return False
+
+    thumb_tip = landmarks[THUMB_TIP]
+    index_tip = landmarks[INDEX_TIP]
+
+    wrist = landmarks[WRIST]
+    middle_mcp = landmarks[MIDDLE_MCP]
+
+    tip_distance = distance(
+        thumb_tip,
+        index_tip
+    )
+
+    palm_size = distance(
+        wrist,
+        middle_mcp
+    )
+
+    if palm_size == 0:
+        return False
+
+    normalized_distance = (
+        tip_distance / palm_size
+    )
+
+    return normalized_distance < 0.40

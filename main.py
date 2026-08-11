@@ -2,6 +2,7 @@ import cv2
 import time
 
 from src.gesture_classifier import GestureClassifier
+from src.gesture_smoother import GestureSmoother
 from src.hand_tracker import HandTracker
 from src.features import get_finger_states
 
@@ -96,6 +97,7 @@ def main():
     )
 
     classifier = GestureClassifier()
+    smoothers = {}
 
     previous_time = time.time()
 
@@ -153,8 +155,19 @@ def main():
                     # Gesture classification
                     # -----------------------------
 
-                    gesture = classifier.classify(
+                    if hand_index not in smoothers:
+                        smoothers[hand_index] = GestureSmoother(
+                            history_size=7,
+                            min_votes=4
+                        )
+
+                    raw_gesture = classifier.classify(
+                        hand_landmarks,
                         finger_states
+                    )
+
+                    stable_gesture = smoothers[hand_index].update(
+                        raw_gesture
                     )
 
                     # -----------------------------
@@ -164,7 +177,7 @@ def main():
                     draw_gesture_label(
                         frame,
                         hand_landmarks,
-                        gesture,
+                        stable_gesture,
                         hand_index + 1
                     )
 
@@ -172,7 +185,7 @@ def main():
                         f"Hand {hand_index + 1}:",
                         finger_states,
                         "→",
-                        gesture
+                        stable_gesture
                     )
 
                     height, width, _ = frame.shape
