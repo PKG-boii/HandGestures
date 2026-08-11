@@ -3,8 +3,10 @@ import time
 
 from src.gesture_classifier import GestureClassifier
 from src.gesture_smoother import GestureSmoother
+from src.dynamic_gestures import DynamicGestureDetector
 from src.hand_tracker import HandTracker
 from src.features import get_finger_states
+from src.drawing_layer import DrawingLayer
 
 
 def draw_gesture_label(frame, landmarks, gesture, hand_number):
@@ -71,6 +73,31 @@ def draw_gesture_label(frame, landmarks, gesture, hand_number):
     )
 
 
+def mouse_callback(event, x, y, flags, param):
+
+    drawing = param
+
+    if event == cv2.EVENT_LBUTTONDOWN:
+
+        drawing.start_stroke(
+            x,
+            y
+        )
+
+    elif event == cv2.EVENT_MOUSEMOVE:
+
+        if flags & cv2.EVENT_FLAG_LBUTTON:
+
+            drawing.draw(
+                x,
+                y
+            )
+
+    elif event == cv2.EVENT_LBUTTONUP:
+
+        drawing.end_stroke()
+
+
 def main():
 
     # -----------------------------
@@ -87,6 +114,29 @@ def main():
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
+    width = int(
+        cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+    )
+
+    height = int(
+        cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    )
+
+    drawing = DrawingLayer(
+        width,
+        height
+    )
+
+    cv2.namedWindow(
+        "GestureDraw"
+    )
+
+    cv2.setMouseCallback(
+        "GestureDraw",
+        mouse_callback,
+        drawing
+    )
+
     # -----------------------------
     # Create hand tracker
     # -----------------------------
@@ -98,10 +148,11 @@ def main():
 
     classifier = GestureClassifier()
     smoothers = {}
+    dynamic_detectors = {}
 
     previous_time = time.time()
 
-    print("GestureFlow started.")
+    print("GestureDraw started.")
     print("Press Q to quit.")
 
     try:
@@ -143,17 +194,17 @@ def main():
                     result.hand_landmarks
                 ):
 
-                    # -----------------------------
-                    # Finger detection
-                    # -----------------------------
+                    # --------------------------------
+                    # Finger states
+                    # --------------------------------
 
                     finger_states = get_finger_states(
                         hand_landmarks
                     )
 
-                    # -----------------------------
-                    # Gesture classification
-                    # -----------------------------
+                    # --------------------------------
+                    # Initialize smoothers/detectors
+                    # --------------------------------
 
                     if hand_index not in smoothers:
                         smoothers[hand_index] = GestureSmoother(
@@ -161,23 +212,56 @@ def main():
                             min_votes=4
                         )
 
+                    if hand_index not in dynamic_detectors:
+                        dynamic_detectors[hand_index] = DynamicGestureDetector(
+                            history_size=20
+                        )
+
+                    # --------------------------------
+                    # Static gesture
+                    # --------------------------------
+
                     raw_gesture = classifier.classify(
                         hand_landmarks,
                         finger_states
                     )
 
-                    stable_gesture = smoothers[hand_index].update(
+                    stable_gesture = smoothers[
+                        hand_index
+                    ].update(
                         raw_gesture
                     )
 
-                    # -----------------------------
+                    # --------------------------------
+                    # Dynamic gesture
+                    # --------------------------------
+
+                    dynamic_gesture = dynamic_detectors[
+                        hand_index
+                    ].update(
+                        hand_landmarks
+                    )
+
+                    # --------------------------------
+                    # Choose what to display
+                    # --------------------------------
+
+                    if dynamic_gesture is not None:
+
+                        display_gesture = dynamic_gesture
+
+                    else:
+
+                        display_gesture = stable_gesture
+
+                    # --------------------------------
                     # Draw gesture label
-                    # -----------------------------
+                    # --------------------------------
 
                     draw_gesture_label(
                         frame,
                         hand_landmarks,
-                        stable_gesture,
+                        display_gesture,
                         hand_index + 1
                     )
 
@@ -185,7 +269,7 @@ def main():
                         f"Hand {hand_index + 1}:",
                         finger_states,
                         "→",
-                        stable_gesture
+                        display_gesture
                     )
 
                     height, width, _ = frame.shape
@@ -312,7 +396,7 @@ def main():
 
             cv2.putText(
                 frame,
-                "GestureFlow | Press Q to quit",
+                "GestureDraw | Press Q to quit",
                 (30, 120),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.7,
@@ -321,16 +405,31 @@ def main():
             )
 
             # -----------------------------
+            # Composite drawing
+            # -----------------------------
+
+            frame = drawing.render(
+                frame
+            )
+
+            # -----------------------------
             # Show frame
             # -----------------------------
 
             cv2.imshow(
-                "GestureFlow",
+                "GestureDraw",
                 frame
             )
 
-            # Quit
-            if cv2.waitKey(1) & 0xFF == ord("q"):
+            # Keyboard controls
+            key = cv2.waitKey(1) & 0xFF
+
+            if key == ord("c"):
+
+                drawing.clear()
+
+            elif key == ord("q"):
+
                 break
 
     finally:
@@ -339,7 +438,7 @@ def main():
         cv2.destroyAllWindows()
         tracker.close()
 
-        print("GestureFlow stopped.")
+        print("GestureDraw stopped.")
 
 
 if __name__ == "__main__":
