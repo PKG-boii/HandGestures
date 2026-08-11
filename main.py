@@ -10,6 +10,7 @@ from src.drawing_layer import DrawingLayer
 from src.cursor import Cursor
 from src.pinch_detector import PinchDetector
 from src.toolbox import Toolbox
+from src.color_palette import ColorPalette
 
 
 def draw_gesture_label(frame, landmarks, gesture, hand_number):
@@ -137,6 +138,8 @@ def main():
     pinch_detector = PinchDetector()
 
     toolbox = Toolbox()
+
+    palette = ColorPalette()
 
     cv2.namedWindow(
         "GestureDraw"
@@ -406,11 +409,16 @@ def main():
                         cursor_y
                     )
 
+                    color_index, selected_color = palette.get_color_at(
+                        cursor_x,
+                        cursor_y
+                    )
+
                     if pinching:
 
-                        # --------------------------------
-                        # Selecting a tool
-                        # --------------------------------
+                        # -------------------------------
+                        # Tool selection
+                        # -------------------------------
 
                         if hovered_tool is not None:
 
@@ -418,30 +426,53 @@ def main():
                                 hovered_tool
                             )
 
+                            drawing.set_tool(
+                                hovered_tool
+                            )
+
                             if drawing.is_drawing:
                                 drawing.end_stroke()
 
-                        # --------------------------------
-                        # Drawing
-                        # --------------------------------
+                        # -------------------------------
+                        # Color selection
+                        # -------------------------------
+
+                        elif color_index is not None:
+
+                            palette.select(
+                                color_index
+                            )
+
+                            b, g, r = selected_color
+
+                            drawing.set_color(
+                                b,
+                                g,
+                                r
+                            )
+
+                            if drawing.is_drawing:
+                                drawing.end_stroke()
+
+                        # -------------------------------
+                        # Actual drawing
+                        # -------------------------------
 
                         else:
 
-                            if toolbox.selected_tool != "ERASER":
+                            if not drawing.is_drawing:
 
-                                if not drawing.is_drawing:
+                                drawing.start_stroke(
+                                    cursor_x,
+                                    cursor_y
+                                )
 
-                                    drawing.start_stroke(
-                                        cursor_x,
-                                        cursor_y
-                                    )
+                            else:
 
-                                else:
-
-                                    drawing.draw(
-                                        cursor_x,
-                                        cursor_y
-                                    )
+                                drawing.draw(
+                                    cursor_x,
+                                    cursor_y
+                                )
 
                     else:
 
@@ -550,10 +581,16 @@ def main():
             )
 
             # -----------------------------
-            # Draw toolbox
+            # Draw toolbox & color palette
             # -----------------------------
 
             toolbox.draw(
+                frame,
+                cursor_x,
+                cursor_y
+            )
+
+            palette.draw(
                 frame,
                 cursor_x,
                 cursor_y
