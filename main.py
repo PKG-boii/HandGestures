@@ -1,7 +1,73 @@
 import cv2
 import time
 
+from src.gesture_classifier import GestureClassifier
 from src.hand_tracker import HandTracker
+from src.features import get_finger_states
+
+
+def draw_gesture_label(frame, landmarks, gesture, hand_number):
+    """
+    Draws a gesture label above the detected hand.
+    """
+
+    height, width, _ = frame.shape
+
+    # Get all x/y coordinates
+    x_coords = [
+        int(landmark.x * width)
+        for landmark in landmarks
+    ]
+
+    y_coords = [
+        int(landmark.y * height)
+        for landmark in landmarks
+    ]
+
+    # Bounding box of the hand
+    min_x = min(x_coords)
+    max_x = max(x_coords)
+    min_y = min(y_coords)
+    max_y = max(y_coords)
+
+    # Add some padding
+    padding = 10
+
+    min_x = max(0, min_x - padding)
+    min_y = max(0, min_y - padding)
+
+    max_x = min(width - 1, max_x + padding)
+    max_y = min(height - 1, max_y + padding)
+
+    # Draw bounding box
+    cv2.rectangle(
+        frame,
+        (min_x, min_y),
+        (max_x, max_y),
+        (255, 255, 255),
+        2
+    )
+
+    # Label position
+    label_x = min_x
+    label_y = min_y - 10
+
+    # If label would go outside the screen,
+    # put it inside the bounding box instead.
+    if label_y < 30:
+        label_y = min_y + 30
+
+    text = f"Hand {hand_number}: {gesture}"
+
+    cv2.putText(
+        frame,
+        text,
+        (label_x, label_y),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.7,
+        (0, 255, 255),
+        2
+    )
 
 
 def main():
@@ -28,6 +94,8 @@ def main():
         model_path="models/hand_landmarker.task",
         num_hands=2
     )
+
+    classifier = GestureClassifier()
 
     previous_time = time.time()
 
@@ -69,11 +137,50 @@ def main():
 
             if result.hand_landmarks:
 
-                for hand_landmarks in result.hand_landmarks:
+                for hand_index, hand_landmarks in enumerate(
+                    result.hand_landmarks
+                ):
+
+                    # -----------------------------
+                    # Finger detection
+                    # -----------------------------
+
+                    finger_states = get_finger_states(
+                        hand_landmarks
+                    )
+
+                    # -----------------------------
+                    # Gesture classification
+                    # -----------------------------
+
+                    gesture = classifier.classify(
+                        finger_states
+                    )
+
+                    # -----------------------------
+                    # Draw gesture label
+                    # -----------------------------
+
+                    draw_gesture_label(
+                        frame,
+                        hand_landmarks,
+                        gesture,
+                        hand_index + 1
+                    )
+
+                    print(
+                        f"Hand {hand_index + 1}:",
+                        finger_states,
+                        "→",
+                        gesture
+                    )
 
                     height, width, _ = frame.shape
 
-                    # Draw every landmark
+                    # -----------------------------
+                    # Draw landmarks
+                    # -----------------------------
+
                     for landmark in hand_landmarks:
 
                         x = int(
