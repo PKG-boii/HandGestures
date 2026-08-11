@@ -8,6 +8,7 @@ from src.hand_tracker import HandTracker
 from src.features import get_finger_states
 from src.drawing_layer import DrawingLayer
 from src.cursor import Cursor
+from src.pinch_detector import PinchDetector
 
 
 def draw_gesture_label(frame, landmarks, gesture, hand_number):
@@ -131,6 +132,8 @@ def main():
     cursor = Cursor(
         smoothing=0.35
     )
+
+    pinch_detector = PinchDetector()
 
     cv2.namedWindow(
         "GestureDraw"
@@ -360,10 +363,20 @@ def main():
                         )
 
                     # --------------------------------
-                    # Cursor positioning
+                    # Pinch detection
                     # --------------------------------
 
+                    thumb_tip = hand_landmarks[4]
                     index_tip = hand_landmarks[8]
+
+                    pinching = pinch_detector.update(
+                        thumb_tip,
+                        index_tip
+                    )
+
+                    # --------------------------------
+                    # Cursor positioning
+                    # --------------------------------
 
                     target_x = int(
                         index_tip.x * width
@@ -379,16 +392,56 @@ def main():
                     )
 
                     # --------------------------------
+                    # Connect to drawing layer
+                    # --------------------------------
+
+                    if pinching:
+
+                        if not drawing.is_drawing:
+
+                            drawing.start_stroke(
+                                cursor_x,
+                                cursor_y
+                            )
+
+                        else:
+
+                            drawing.draw(
+                                cursor_x,
+                                cursor_y
+                            )
+
+                    else:
+
+                        if drawing.is_drawing:
+
+                            drawing.end_stroke()
+
+                    # --------------------------------
                     # Draw cursor
                     # --------------------------------
 
-                    cv2.circle(
-                        frame,
-                        (cursor_x, cursor_y),
-                        10,
-                        (0, 255, 255),
-                        2
-                    )
+                    if pinching:
+
+                        # Filled cursor when pinching
+                        cv2.circle(
+                            frame,
+                            (cursor_x, cursor_y),
+                            10,
+                            (0, 255, 255),
+                            -1
+                        )
+
+                    else:
+
+                        # Hollow cursor when hovering
+                        cv2.circle(
+                            frame,
+                            (cursor_x, cursor_y),
+                            10,
+                            (0, 255, 255),
+                            2
+                        )
 
                     cv2.circle(
                         frame,
@@ -401,6 +454,10 @@ def main():
             else:
 
                 cursor.reset()
+                pinch_detector.reset()
+
+                if drawing.is_drawing:
+                    drawing.end_stroke()
 
             # -----------------------------
             # Calculate FPS
