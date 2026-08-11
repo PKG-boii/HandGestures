@@ -1,3 +1,6 @@
+import cv2
+
+
 class Cursor:
 
     def __init__(self, smoothing=0.35):
@@ -34,3 +37,59 @@ class Cursor:
 
         self.x = None
         self.y = None
+
+    def draw(
+        self,
+        frame,
+        x,
+        y,
+        pinching=False,
+        hovering=False
+    ):
+
+        if pinching:
+
+            cv2.circle(
+                frame,
+                (x, y),
+                10,
+                (0, 255, 255),
+                -1
+            )
+
+            cv2.circle(
+                frame,
+                (x, y),
+                15,
+                (0, 255, 255),
+                2
+            )
+
+        elif hovering:
+
+            cv2.circle(
+                frame,
+                (x, y),
+                11,
+                (255, 255, 255),
+                2
+            )
+
+            cv2.circle(
+                frame,
+                (x, y),
+                3,
+                (255, 255, 255),
+                -1
+            )
+
+        else:
+
+            cv2.circle(
+                frame,
+                (x, y),
+                8,
+                (255, 255, 255),
+                2
+            )
+

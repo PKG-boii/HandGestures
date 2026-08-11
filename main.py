@@ -12,6 +12,7 @@ from src.pinch_detector import PinchDetector
 from src.toolbox import Toolbox
 from src.color_palette import ColorPalette
 from src.display import DisplayManager
+from src.ui_overlay import UIOverlay
 
 
 def draw_gesture_label(frame, landmarks, gesture, hand_number):
@@ -142,6 +143,8 @@ def main():
 
     palette = ColorPalette()
 
+    ui = UIOverlay()
+
     display = DisplayManager(
         "AirDraw"
     )
@@ -193,6 +196,7 @@ def main():
             cursor_x = None
             cursor_y = None
             pinching = False
+            hovered_tool = None
 
             # -----------------------------
             # Detect hands
@@ -566,15 +570,14 @@ def main():
                 cursor_y
             )
 
-            cv2.putText(
+            # -----------------------------
+            # Draw UI header
+            # -----------------------------
+
+            ui.draw_header(
                 frame,
-                f"TOOL: {toolbox.selected_tool}",
-                (20, height - 25),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.7,
-                (255, 255, 255),
-                2,
-                cv2.LINE_AA
+                fps,
+                toolbox.selected_tool
             )
 
             # -----------------------------
@@ -583,34 +586,12 @@ def main():
 
             if cursor_x is not None and cursor_y is not None:
 
-                if pinching:
-
-                    # Filled cursor when pinching
-                    cv2.circle(
-                        frame,
-                        (cursor_x, cursor_y),
-                        10,
-                        (0, 255, 255),
-                        -1
-                    )
-
-                else:
-
-                    # Hollow cursor when hovering
-                    cv2.circle(
-                        frame,
-                        (cursor_x, cursor_y),
-                        10,
-                        (0, 255, 255),
-                        2
-                    )
-
-                cv2.circle(
+                cursor.draw(
                     frame,
-                    (cursor_x, cursor_y),
-                    3,
-                    (0, 255, 255),
-                    -1
+                    cursor_x,
+                    cursor_y,
+                    pinching,
+                    hovered_tool is not None
                 )
 
             # -----------------------------
@@ -625,6 +606,10 @@ def main():
             if key == ord("c"):
 
                 drawing.clear()
+
+            elif key == ord("f"):
+
+                display.toggle_fullscreen()
 
             elif key == ord("q"):
 

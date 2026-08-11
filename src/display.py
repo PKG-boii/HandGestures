@@ -30,6 +30,29 @@ class DisplayManager:
         self.width = width
         self.height = height
 
+    def toggle_fullscreen(self):
+
+        current = cv2.getWindowProperty(
+            self.window_name,
+            cv2.WND_PROP_FULLSCREEN
+        )
+
+        if current == cv2.WINDOW_FULLSCREEN:
+
+            cv2.setWindowProperty(
+                self.window_name,
+                cv2.WND_PROP_FULLSCREEN,
+                cv2.WINDOW_NORMAL
+            )
+
+        else:
+
+            cv2.setWindowProperty(
+                self.window_name,
+                cv2.WND_PROP_FULLSCREEN,
+                cv2.WINDOW_FULLSCREEN
+            )
+
     def show(self, frame):
 
         display_frame = self._fit_frame(
