@@ -11,6 +11,7 @@ from src.cursor import Cursor
 from src.pinch_detector import PinchDetector
 from src.toolbox import Toolbox
 from src.color_palette import ColorPalette
+from src.display import DisplayManager
 
 
 def draw_gesture_label(frame, landmarks, gesture, hand_number):
@@ -141,12 +142,12 @@ def main():
 
     palette = ColorPalette()
 
-    cv2.namedWindow(
-        "GestureDraw"
+    display = DisplayManager(
+        "AirDraw"
     )
 
     cv2.setMouseCallback(
-        "GestureDraw",
+        display.window_name,
         mouse_callback,
         drawing
     )
@@ -191,6 +192,7 @@ def main():
 
             cursor_x = None
             cursor_y = None
+            pinching = False
 
             # -----------------------------
             # Detect hands
@@ -406,7 +408,9 @@ def main():
 
                     hovered_tool = toolbox.get_tool_at(
                         cursor_x,
-                        cursor_y
+                        cursor_y,
+                        width,
+                        height
                     )
 
                     color_index, selected_color = palette.get_color_at(
@@ -479,40 +483,6 @@ def main():
                         if drawing.is_drawing:
 
                             drawing.end_stroke()
-
-                    # --------------------------------
-                    # Draw cursor
-                    # --------------------------------
-
-                    if pinching:
-
-                        # Filled cursor when pinching
-                        cv2.circle(
-                            frame,
-                            (cursor_x, cursor_y),
-                            10,
-                            (0, 255, 255),
-                            -1
-                        )
-
-                    else:
-
-                        # Hollow cursor when hovering
-                        cv2.circle(
-                            frame,
-                            (cursor_x, cursor_y),
-                            10,
-                            (0, 255, 255),
-                            2
-                        )
-
-                    cv2.circle(
-                        frame,
-                        (cursor_x, cursor_y),
-                        3,
-                        (0, 255, 255),
-                        -1
-                    )
 
             else:
 
@@ -608,13 +578,46 @@ def main():
             )
 
             # -----------------------------
+            # Draw cursor
+            # -----------------------------
+
+            if cursor_x is not None and cursor_y is not None:
+
+                if pinching:
+
+                    # Filled cursor when pinching
+                    cv2.circle(
+                        frame,
+                        (cursor_x, cursor_y),
+                        10,
+                        (0, 255, 255),
+                        -1
+                    )
+
+                else:
+
+                    # Hollow cursor when hovering
+                    cv2.circle(
+                        frame,
+                        (cursor_x, cursor_y),
+                        10,
+                        (0, 255, 255),
+                        2
+                    )
+
+                cv2.circle(
+                    frame,
+                    (cursor_x, cursor_y),
+                    3,
+                    (0, 255, 255),
+                    -1
+                )
+
+            # -----------------------------
             # Show frame
             # -----------------------------
 
-            cv2.imshow(
-                "GestureDraw",
-                frame
-            )
+            display.show(frame)
 
             # Keyboard controls
             key = cv2.waitKey(1) & 0xFF

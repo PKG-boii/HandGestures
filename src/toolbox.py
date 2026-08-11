@@ -5,42 +5,120 @@ class Toolbox:
 
     def __init__(self):
 
-        self.x = 20
-        self.y = 20
-
-        self.width = 180
-        self.button_height = 50
-
         self.tools = [
             "PEN",
             "BRUSH",
             "MARKER",
             "HIGHLIGHTER",
-            "ERASER"
+            "ERASER",
+            "LINE",
+            "RECTANGLE",
+            "CIRCLE",
+            "TRIANGLE",
+            "ARROW"
         ]
 
         self.selected_tool = "PEN"
 
-    def get_button_rect(self, index):
+        self.button_size = 48
+        self.spacing = 8
 
-        x1 = self.x
-        y1 = (
-            self.y
-            + 45
-            + index * self.button_height
+        self.toolbar_height = 72
+
+        self.hovered_tool = None
+
+    # ------------------------------------------------
+    # Layout
+    # ------------------------------------------------
+
+    def calculate_layout(
+        self,
+        frame_width,
+        frame_height
+    ):
+
+        total_width = (
+            len(self.tools)
+            * self.button_size
+            +
+            (len(self.tools) - 1)
+            * self.spacing
+            +
+            30
         )
 
-        x2 = self.x + self.width
-        y2 = y1 + self.button_height
+        x = (
+            frame_width - total_width
+        ) // 2
 
-        return x1, y1, x2, y2
+        y = (
+            frame_height
+            - self.toolbar_height
+            - 25
+        )
 
-    def get_tool_at(self, x, y):
+        return x, y
 
-        for i, tool in enumerate(self.tools):
+    # ------------------------------------------------
+    # Button rectangle
+    # ------------------------------------------------
+
+    def get_button_rect(
+        self,
+        index,
+        frame_width,
+        frame_height
+    ):
+
+        toolbar_x, toolbar_y = (
+            self.calculate_layout(
+                frame_width,
+                frame_height
+            )
+        )
+
+        x1 = (
+            toolbar_x
+            + 15
+            + index
+            * (
+                self.button_size
+                + self.spacing
+            )
+        )
+
+        y1 = toolbar_y + 12
+
+        x2 = x1 + self.button_size
+        y2 = y1 + self.button_size
+
+        return (
+            x1,
+            y1,
+            x2,
+            y2
+        )
+
+    # ------------------------------------------------
+    # Find tool under cursor
+    # ------------------------------------------------
+
+    def get_tool_at(
+        self,
+        x,
+        y,
+        frame_width,
+        frame_height
+    ):
+
+        for i in range(len(self.tools)):
 
             x1, y1, x2, y2 = (
-                self.get_button_rect(i)
+                self.get_button_rect(
+                    i,
+                    frame_width,
+                    frame_height
+                )
             )
 
             if (
@@ -48,73 +126,113 @@ class Toolbox:
                 and
                 y1 <= y <= y2
             ):
-                return tool
+
+                return self.tools[i]
 
         return None
+
+    # ------------------------------------------------
+    # Select
+    # ------------------------------------------------
 
     def select_tool(self, tool):
 
         if tool in self.tools:
+
             self.selected_tool = tool
 
-    def draw(self, frame, cursor_x=None, cursor_y=None):
+    # ------------------------------------------------
+    # Icons
+    # ------------------------------------------------
 
-        # -----------------------------------------
-        # Create transparent UI layer
-        # -----------------------------------------
+    def get_icon(self, tool):
 
+        icons = {
+
+            "PEN": "P",
+            "BRUSH": "B",
+            "MARKER": "M",
+            "HIGHLIGHTER": "H",
+            "ERASER": "E",
+
+            "LINE": "/",
+            "RECTANGLE": "[]",
+            "CIRCLE": "O",
+            "TRIANGLE": "^",
+            "ARROW": "->"
+        }
+
+        return icons.get(
+            tool,
+            "?"
+        )
+
+    # ------------------------------------------------
+    # Draw
+    # ------------------------------------------------
+
+    def draw(
+        self,
+        frame,
+        cursor_x=None,
+        cursor_y=None
+    ):
+
+        height, width = frame.shape[:2]
+
+        toolbar_x, toolbar_y = (
+            self.calculate_layout(
+                width,
+                height
+            )
+        )
+
+        toolbar_width = (
+            len(self.tools)
+            * self.button_size
+            +
+            (len(self.tools) - 1)
+            * self.spacing
+            +
+            30
+        )
+
+        toolbar_y2 = (
+            toolbar_y
+            + self.toolbar_height
+        )
+
+        # Transparent UI layer
         overlay = frame.copy()
 
-        panel_x1 = self.x
-        panel_y1 = self.y
-
-        panel_x2 = (
-            self.x
-            + self.width
-        )
-
-        panel_y2 = (
-            self.y
-            + 45
-            + len(self.tools)
-            * self.button_height
-        )
-
-        # Semi-transparent panel
+        # Outer panel
         cv2.rectangle(
             overlay,
-            (panel_x1, panel_y1),
-            (panel_x2, panel_y2),
-            (25, 25, 25),
+            (
+                toolbar_x,
+                toolbar_y
+            ),
+            (
+                toolbar_x + toolbar_width,
+                toolbar_y2
+            ),
+            (20, 20, 20),
             -1
         )
 
-        # -----------------------------------------
-        # Title
-        # -----------------------------------------
-
-        cv2.putText(
-            overlay,
-            "TOOLS",
-            (
-                self.x + 15,
-                self.y + 30
-            ),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255, 255, 255),
-            2,
-            cv2.LINE_AA
-        )
-
-        # -----------------------------------------
         # Buttons
-        # -----------------------------------------
+        self.hovered_tool = None
 
-        for i, tool in enumerate(self.tools):
+        for i, tool in enumerate(
+            self.tools
+        ):
 
             x1, y1, x2, y2 = (
-                self.get_button_rect(i)
+                self.get_button_rect(
+                    i,
+                    width,
+                    height
+                )
             )
 
             hovered = False
@@ -127,19 +245,23 @@ class Toolbox:
                     y1 <= cursor_y <= y2
                 )
 
+            if hovered:
+
+                self.hovered_tool = tool
+
             # Selected
             if tool == self.selected_tool:
 
-                background = (
+                bg = (
                     60,
                     130,
-                    70
+                    80
                 )
 
-            # Hover
+            # Hovered
             elif hovered:
 
-                background = (
+                bg = (
                     80,
                     90,
                     150
@@ -147,51 +269,95 @@ class Toolbox:
 
             else:
 
-                background = (
-                    50,
-                    50,
-                    50
+                bg = (
+                    45,
+                    45,
+                    45
                 )
 
             cv2.rectangle(
                 overlay,
                 (x1, y1),
                 (x2, y2),
-                background,
+                bg,
                 -1
             )
 
+            # Border
             cv2.rectangle(
                 overlay,
                 (x1, y1),
                 (x2, y2),
-                (130, 130, 130),
+                (120, 120, 120),
                 1
+            )
+
+            icon = self.get_icon(tool)
+
+            text_size = cv2.getTextSize(
+                icon,
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                2
+            )[0]
+
+            text_x = (
+                x1
+                +
+                (
+                    self.button_size
+                    - text_size[0]
+                ) // 2
+            )
+
+            text_y = (
+                y1
+                +
+                (
+                    self.button_size
+                    + text_size[1]
+                ) // 2
             )
 
             cv2.putText(
                 overlay,
-                tool,
+                icon,
                 (
-                    x1 + 15,
-                    y1 + 33
+                    text_x,
+                    text_y
                 ),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
+                0.8,
+                (255, 255, 255),
+                2,
+                cv2.LINE_AA
+            )
+
+        # Blend the entire toolbar
+        cv2.addWeighted(
+            overlay,
+            0.60,
+            frame,
+            0.40,
+            0,
+            frame
+        )
+
+        # Tool name above toolbar
+        if self.hovered_tool:
+
+            label = self.hovered_tool
+
+            cv2.putText(
+                frame,
+                label,
+                (
+                    toolbar_x,
+                    toolbar_y - 12
+                ),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.55,
                 (255, 255, 255),
                 1,
                 cv2.LINE_AA
             )
-
-        # -----------------------------------------
-        # Blend UI with camera
-        # -----------------------------------------
-
-        cv2.addWeighted(
-            overlay,
-            0.55,
-            frame,
-            0.45,
-            0,
-            frame
-        )
