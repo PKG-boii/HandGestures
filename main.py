@@ -13,6 +13,16 @@ from src.toolbox import Toolbox
 from src.color_palette import ColorPalette
 from src.display import DisplayManager
 from src.ui_overlay import UIOverlay
+from src.shape_manager import ShapeManager
+from src.shapes import Shape
+
+SHAPE_TOOLS = {
+    "LINE",
+    "RECTANGLE",
+    "CIRCLE",
+    "TRIANGLE",
+    "ARROW"
+}
 
 
 def draw_gesture_label(frame, landmarks, gesture, hand_number):
@@ -144,6 +154,8 @@ def main():
     palette = ColorPalette()
 
     ui = UIOverlay()
+
+    shape_manager = ShapeManager()
 
     display = DisplayManager(
         "AirDraw"
@@ -468,22 +480,53 @@ def main():
 
                         else:
 
-                            if not drawing.is_drawing:
+                            if toolbox.selected_tool in SHAPE_TOOLS:
 
-                                drawing.start_stroke(
-                                    cursor_x,
-                                    cursor_y
-                                )
+                                # Start shape
+                                if shape_manager.current_shape is None:
+
+                                    shape_manager.start_shape(
+                                        toolbox.selected_tool,
+                                        cursor_x,
+                                        cursor_y,
+                                        drawing.color[:3],
+                                        drawing.brush_size
+                                    )
+
+                                else:
+
+                                    # Update preview
+                                    shape_manager.update_shape(
+                                        cursor_x,
+                                        cursor_y
+                                    )
 
                             else:
 
-                                drawing.draw(
-                                    cursor_x,
-                                    cursor_y
-                                )
+                                # Normal freehand drawing
+
+                                if not drawing.is_drawing:
+
+                                    drawing.start_stroke(
+                                        cursor_x,
+                                        cursor_y
+                                    )
+
+                                else:
+
+                                    drawing.draw(
+                                        cursor_x,
+                                        cursor_y
+                                    )
 
                     else:
 
+                        # Finish shape
+                        if shape_manager.current_shape is not None:
+
+                            shape_manager.finish_shape()
+
+                        # Finish freehand stroke
                         if drawing.is_drawing:
 
                             drawing.end_stroke()
@@ -555,6 +598,38 @@ def main():
             )
 
             # -----------------------------
+            # Render permanent shapes
+            # -----------------------------
+
+            for shape_data in shape_manager.shapes:
+
+                shape = Shape(
+                    shape_data["type"],
+                    shape_data["start"],
+                    shape_data["end"],
+                    shape_data["color"],
+                    shape_data["width"]
+                )
+
+                shape.draw(frame)
+
+            # -----------------------------
+            # Render live shape preview
+            # -----------------------------
+
+            if shape_manager.current_shape:
+
+                preview = Shape(
+                    shape_manager.current_shape["type"],
+                    shape_manager.current_shape["start"],
+                    shape_manager.current_shape["end"],
+                    shape_manager.current_shape["color"],
+                    shape_manager.current_shape["width"]
+                )
+
+                preview.draw(frame)
+
+            # -----------------------------
             # Draw toolbox & color palette
             # -----------------------------
 
@@ -606,6 +681,7 @@ def main():
             if key == ord("c"):
 
                 drawing.clear()
+                shape_manager.shapes.clear()
 
             elif key == ord("f"):
 
