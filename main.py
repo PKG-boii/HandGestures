@@ -9,6 +9,7 @@ from src.features import get_finger_states
 from src.drawing_layer import DrawingLayer
 from src.cursor import Cursor
 from src.pinch_detector import PinchDetector
+from src.toolbox import Toolbox
 
 
 def draw_gesture_label(frame, landmarks, gesture, hand_number):
@@ -135,6 +136,8 @@ def main():
 
     pinch_detector = PinchDetector()
 
+    toolbox = Toolbox()
+
     cv2.namedWindow(
         "GestureDraw"
     )
@@ -182,6 +185,9 @@ def main():
             timestamp_ms = int(
                 current_time * 1000
             )
+
+            cursor_x = None
+            cursor_y = None
 
             # -----------------------------
             # Detect hands
@@ -395,21 +401,47 @@ def main():
                     # Connect to drawing layer
                     # --------------------------------
 
+                    hovered_tool = toolbox.get_tool_at(
+                        cursor_x,
+                        cursor_y
+                    )
+
                     if pinching:
 
-                        if not drawing.is_drawing:
+                        # --------------------------------
+                        # Selecting a tool
+                        # --------------------------------
 
-                            drawing.start_stroke(
-                                cursor_x,
-                                cursor_y
+                        if hovered_tool is not None:
+
+                            toolbox.select_tool(
+                                hovered_tool
                             )
+
+                            if drawing.is_drawing:
+                                drawing.end_stroke()
+
+                        # --------------------------------
+                        # Drawing
+                        # --------------------------------
 
                         else:
 
-                            drawing.draw(
-                                cursor_x,
-                                cursor_y
-                            )
+                            if toolbox.selected_tool != "ERASER":
+
+                                if not drawing.is_drawing:
+
+                                    drawing.start_stroke(
+                                        cursor_x,
+                                        cursor_y
+                                    )
+
+                                else:
+
+                                    drawing.draw(
+                                        cursor_x,
+                                        cursor_y
+                                    )
 
                     else:
 
@@ -515,6 +547,16 @@ def main():
 
             frame = drawing.render(
                 frame
+            )
+
+            # -----------------------------
+            # Draw toolbox
+            # -----------------------------
+
+            toolbox.draw(
+                frame,
+                cursor_x,
+                cursor_y
             )
 
             # -----------------------------
