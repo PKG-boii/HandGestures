@@ -559,6 +559,17 @@ def main():
                 cursor_y
             )
 
+            cv2.putText(
+                frame,
+                f"TOOL: {toolbox.selected_tool}",
+                (20, height - 25),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7,
+                (255, 255, 255),
+                2,
+                cv2.LINE_AA
+            )
+
             # -----------------------------
             # Show frame
             # -----------------------------
