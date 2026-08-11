@@ -7,6 +7,7 @@ from src.dynamic_gestures import DynamicGestureDetector
 from src.hand_tracker import HandTracker
 from src.features import get_finger_states
 from src.drawing_layer import DrawingLayer
+from src.cursor import Cursor
 
 
 def draw_gesture_label(frame, landmarks, gesture, hand_number):
@@ -125,6 +126,10 @@ def main():
     drawing = DrawingLayer(
         width,
         height
+    )
+
+    cursor = Cursor(
+        smoothing=0.35
     )
 
     cv2.namedWindow(
@@ -353,6 +358,49 @@ def main():
                             (0, 255, 0),
                             2
                         )
+
+                    # --------------------------------
+                    # Cursor positioning
+                    # --------------------------------
+
+                    index_tip = hand_landmarks[8]
+
+                    target_x = int(
+                        index_tip.x * width
+                    )
+
+                    target_y = int(
+                        index_tip.y * height
+                    )
+
+                    cursor_x, cursor_y = cursor.update(
+                        target_x,
+                        target_y
+                    )
+
+                    # --------------------------------
+                    # Draw cursor
+                    # --------------------------------
+
+                    cv2.circle(
+                        frame,
+                        (cursor_x, cursor_y),
+                        10,
+                        (0, 255, 255),
+                        2
+                    )
+
+                    cv2.circle(
+                        frame,
+                        (cursor_x, cursor_y),
+                        3,
+                        (0, 255, 255),
+                        -1
+                    )
+
+            else:
+
+                cursor.reset()
 
             # -----------------------------
             # Calculate FPS
