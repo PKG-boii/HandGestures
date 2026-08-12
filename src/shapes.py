@@ -15,39 +15,62 @@ class Shape:
     ):
 
         self.shape_type = shape_type
+
         self.start = start
         self.end = end
-        self.color = color
-        self.width = width
 
-    def draw(self, frame, preview=False):
+        self.color = color
+        self.width = max(1, int(width))
+
+    # =========================================================
+    # DRAW
+    # =========================================================
+
+    def draw(
+        self,
+        frame,
+        preview=False
+    ):
 
         if preview:
 
-            preview_layer = frame.copy()
+            # Draw preview on a separate layer
+            overlay = frame.copy()
 
-            self._draw_shape(preview_layer)
+            self._draw_shape(
+                overlay
+            )
 
             cv2.addWeighted(
-                preview_layer,
-                0.55,
+                overlay,
+                0.65,
                 frame,
-                0.45,
+                0.35,
                 0,
                 frame
             )
 
-            return
+        else:
 
-        self._draw_shape(frame)
+            self._draw_shape(
+                frame
+            )
 
-    def _draw_shape(self, frame):
+    # =========================================================
+    # ACTUAL SHAPE RENDERING
+    # =========================================================
+
+    def _draw_shape(
+        self,
+        frame
+    ):
 
         x1, y1 = self.start
         x2, y2 = self.end
 
-        # Use thickness
-        width = self.width
+        # -----------------------------------------------------
+        # LINE
+        # -----------------------------------------------------
 
         if self.shape_type == "LINE":
 
@@ -56,9 +79,13 @@ class Shape:
                 (x1, y1),
                 (x2, y2),
                 self.color,
-                width,
+                self.width,
                 cv2.LINE_AA
             )
+
+        # -----------------------------------------------------
+        # RECTANGLE
+        # -----------------------------------------------------
 
         elif self.shape_type == "RECTANGLE":
 
@@ -67,33 +94,104 @@ class Shape:
                 (x1, y1),
                 (x2, y2),
                 self.color,
-                width,
+                self.width,
                 cv2.LINE_AA
             )
+
+        # -----------------------------------------------------
+        # CIRCLE
+        # -----------------------------------------------------
 
         elif self.shape_type == "CIRCLE":
 
-            radius = int(
-                math.hypot(
-                    x2 - x1,
-                    y2 - y1
-                )
+            left = min(x1, x2)
+            right = max(x1, x2)
+
+            top = min(y1, y2)
+            bottom = max(y1, y2)
+
+            center_x = (
+                left + right
+            ) // 2
+
+            center_y = (
+                top + bottom
+            ) // 2
+
+            radius_x = (
+                right - left
+            ) // 2
+
+            radius_y = (
+                bottom - top
+            ) // 2
+
+            # Make it a REAL circle
+            radius = min(
+                radius_x,
+                radius_y
             )
 
-            cv2.circle(
-                frame,
-                (x1, y1),
-                radius,
-                self.color,
-                width,
-                cv2.LINE_AA
-            )
+            if radius > 0:
+
+                cv2.circle(
+                    frame,
+                    (
+                        center_x,
+                        center_y
+                    ),
+                    radius,
+                    self.color,
+                    self.width,
+                    cv2.LINE_AA
+                )
+
+        # -----------------------------------------------------
+        # TRIANGLE
+        # -----------------------------------------------------
 
         elif self.shape_type == "TRIANGLE":
 
-            self.draw_triangle(
-                frame
+            left = min(x1, x2)
+            right = max(x1, x2)
+
+            top = min(y1, y2)
+            bottom = max(y1, y2)
+
+            center_x = (
+                left + right
+            ) // 2
+
+            points = np.array(
+                [
+                    [
+                        center_x,
+                        top
+                    ],
+                    [
+                        left,
+                        bottom
+                    ],
+                    [
+                        right,
+                        bottom
+                    ]
+                ],
+                dtype=np.int32
             )
+
+            cv2.polylines(
+                frame,
+                [points],
+                True,
+                self.color,
+                self.width,
+                cv2.LINE_AA
+            )
+
+        # -----------------------------------------------------
+        # ARROW
+        # -----------------------------------------------------
 
         elif self.shape_type == "ARROW":
 
@@ -102,63 +200,7 @@ class Shape:
                 (x1, y1),
                 (x2, y2),
                 self.color,
-                width,
+                self.width,
                 cv2.LINE_AA,
                 tipLength=0.15
             )
-
-    def draw_triangle(self, frame):
-
-        x1, y1 = self.start
-        x2, y2 = self.end
-
-        left = min(
-            x1,
-            x2
-        )
-
-        right = max(
-            x1,
-            x2
-        )
-
-        top = min(
-            y1,
-            y2
-        )
-
-        bottom = max(
-            y1,
-            y2
-        )
-
-        center_x = (
-            left + right
-        ) // 2
-
-        points = np.array(
-            [
-                [
-                    center_x,
-                    top
-                ],
-                [
-                    left,
-                    bottom
-                ],
-                [
-                    right,
-                    bottom
-                ]
-            ],
-            dtype=np.int32
-        )
-
-        cv2.polylines(
-            frame,
-            [points],
-            True,
-            self.color,
-            self.width,
-            cv2.LINE_AA
-        )

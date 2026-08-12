@@ -10,9 +10,15 @@ class Stroke:
         width,
         tool="PEN"
     ):
-        self.points = points
+
+        self.points = points.copy()
+
         self.color = color
-        self.width = width
+        self.width = max(
+            1,
+            int(width)
+        )
+
         self.tool = tool
 
     def draw(self, frame):
@@ -22,16 +28,40 @@ class Stroke:
 
         width = self.width
 
-        if self.tool == "BRUSH":
-            width = int(self.width * 2)
+        # -----------------------------------------
+        # TOOL-SPECIFIC WIDTH
+        # -----------------------------------------
+
+        if self.tool == "PEN":
+
+            width = self.width
+
+        elif self.tool == "BRUSH":
+
+            width = int(
+                self.width * 2
+            )
 
         elif self.tool == "MARKER":
-            width = int(self.width * 1.5)
+
+            width = int(
+                self.width * 1.5
+            )
 
         elif self.tool == "HIGHLIGHTER":
-            width = int(self.width * 3)
 
-        for i in range(1, len(self.points)):
+            width = int(
+                self.width * 3
+            )
+
+        # -----------------------------------------
+        # DRAW STROKE
+        # -----------------------------------------
+
+        for i in range(
+            1,
+            len(self.points)
+        ):
 
             p1 = self.points[i - 1]
             p2 = self.points[i]
