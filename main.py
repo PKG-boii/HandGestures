@@ -559,12 +559,12 @@ def main():
                         # Finish freehand stroke
                         if drawing.is_drawing:
 
-                            if len(drawing.current_points) > 1:
+                            if len(drawing.current_points) >= 2:
 
                                 stroke = Stroke(
                                     drawing.current_points.copy(),
                                     drawing.color[:3],
-                                    drawing.get_tool_width(),
+                                    drawing.brush_size,
                                     drawing.current_tool
                                 )
 
@@ -597,12 +597,12 @@ def main():
 
                 if drawing.is_drawing:
 
-                    if len(drawing.current_points) > 1:
+                    if len(drawing.current_points) >= 2:
 
                         stroke = Stroke(
                             drawing.current_points.copy(),
                             drawing.color[:3],
-                            drawing.get_tool_width(),
+                            drawing.brush_size,
                             drawing.current_tool
                         )
 
@@ -661,12 +661,12 @@ def main():
             )
 
             # -----------------------------
-            # Composite drawing
+            # Composite drawing (Bypassed in favor of vector document rendering)
             # -----------------------------
 
-            frame = drawing.render(
-                frame
-            )
+            # frame = drawing.render(
+            #     frame
+            # )
 
             # -----------------------------
             # Render permanent objects (strokes & shapes)
@@ -685,7 +685,7 @@ def main():
                 preview_stroke = Stroke(
                     drawing.current_points,
                     drawing.color[:3],
-                    drawing.get_tool_width(),
+                    drawing.brush_size,
                     drawing.current_tool
                 )
 
