@@ -20,24 +20,34 @@ class Shape:
         self.color = color
         self.width = width
 
-    def draw(
-        self,
-        frame,
-        preview=False
-    ):
+    def draw(self, frame, preview=False):
+
+        if preview:
+
+            preview_layer = frame.copy()
+
+            self._draw_shape(preview_layer)
+
+            cv2.addWeighted(
+                preview_layer,
+                0.55,
+                frame,
+                0.45,
+                0,
+                frame
+            )
+
+            return
+
+        self._draw_shape(frame)
+
+    def _draw_shape(self, frame):
 
         x1, y1 = self.start
         x2, y2 = self.end
 
-        # Preview appearance
+        # Use thickness
         width = self.width
-
-        if preview:
-
-            width = max(
-                1,
-                self.width
-            )
 
         if self.shape_type == "LINE":
 
