@@ -17,6 +17,7 @@ from src.shape_manager import ShapeManager
 from src.shapes import Shape
 from src.drawing_document import DrawingDocument
 from src.stroke import Stroke
+from src.two_hand_manager import TwoHandManager
 
 
 def draw_gesture_label(frame, landmarks, gesture, hand_number):
@@ -143,7 +144,11 @@ def main():
         smoothing=0.35
     )
 
-    pinch_detector = PinchDetector()
+    cursors = {}
+
+    pinch_detectors = {}
+
+    two_hand_manager = TwoHandManager()
 
     toolbox = Toolbox()
 
@@ -205,6 +210,7 @@ def main():
             cursor_y = None
             pinching = False
             hovered_tool = None
+            hands_data = []
 
             # -----------------------------
             # Detect hands
@@ -386,19 +392,24 @@ def main():
                         )
 
                     # --------------------------------
-                    # Pinch detection
+                    # Pinch detection per hand
                     # --------------------------------
 
                     thumb_tip = hand_landmarks[4]
                     index_tip = hand_landmarks[8]
 
-                    pinching = pinch_detector.update(
+                    hand_id = hand_index
+
+                    if hand_id not in pinch_detectors:
+                        pinch_detectors[hand_id] = PinchDetector()
+
+                    hand_pinching = pinch_detectors[hand_id].update(
                         thumb_tip,
                         index_tip
                     )
 
                     # --------------------------------
-                    # Cursor positioning
+                    # Cursor positioning per hand
                     # --------------------------------
 
                     target_x = int(
@@ -409,175 +420,254 @@ def main():
                         index_tip.y * height
                     )
 
-                    cursor_x, cursor_y = cursor.update(
+                    if hand_id not in cursors:
+                        cursors[hand_id] = Cursor(
+                            smoothing=0.35
+                        )
+
+                    h_cursor_x, h_cursor_y = cursors[hand_id].update(
                         target_x,
                         target_y
                     )
 
-                    # --------------------------------
-                    # Connect to drawing layer
-                    # --------------------------------
+                    # Collect hand information
+                    hands_data.append({
+                        "x": h_cursor_x,
+                        "y": h_cursor_y,
+                        "pinching": hand_pinching
+                    })
 
-                    hovered_tool = toolbox.get_tool_at(
-                        cursor_x,
-                        cursor_y,
-                        width,
-                        height
+                # Sort hands from left to right by x-coordinate
+                hands_data.sort(
+                    key=lambda h: h["x"]
+                )
+
+                # -----------------------------
+                # Interaction routing
+                # -----------------------------
+
+                if len(hands_data) == 2 and hands_data[0]["pinching"] and hands_data[1]["pinching"] and toolbox.selected_tool == "RECTANGLE":
+
+                    # TWO-HAND MODE (Rectangle shape drawing)
+                    left_hand = hands_data[0]
+                    right_hand = hands_data[1]
+
+                    two_hand_manager.update(
+                        left_hand,
+                        right_hand
                     )
 
-                    color_index, selected_color = palette.get_color_at(
-                        cursor_x,
-                        cursor_y
-                    )
+                    # Set cursor_x and cursor_y so cursor drawing knows where they are
+                    cursor_x = right_hand["x"]
+                    cursor_y = right_hand["y"]
+                    pinching = True
 
-                    if pinching:
+                else:
 
-                        # -------------------------------
-                        # Tool selection
-                        # -------------------------------
+                    # If two-hand rectangle pinch just ended, commit it to document
+                    if two_hand_manager.active:
 
-                        if hovered_tool is not None:
+                        left = two_hand_manager.left_point
+                        right = two_hand_manager.right_point
 
-                            toolbox.select_tool(
-                                hovered_tool
+                        if left is not None and right is not None:
+
+                            shape = Shape(
+                                "RECTANGLE",
+                                left,
+                                right,
+                                drawing.color[:3],
+                                drawing.brush_size
                             )
 
-                            drawing.set_tool(
-                                hovered_tool
-                            )
+                            document.add(shape)
 
-                            if drawing.is_drawing:
-                                drawing.end_stroke()
+                        two_hand_manager.reset()
 
-                        # -------------------------------
-                        # Color selection
-                        # -------------------------------
+                    # NORMAL SINGLE-HAND MODE
+                    active_hand = None
 
-                        elif color_index is not None:
+                    # Prefer a pinching hand if one exists
+                    for h in hands_data:
+                        if h["pinching"]:
+                            active_hand = h
+                            break
 
-                            palette.select(
-                                color_index
-                            )
+                    if active_hand is None and len(hands_data) > 0:
+                        active_hand = hands_data[0]
 
-                            b, g, r = selected_color
+                    if active_hand is not None:
 
-                            drawing.set_color(
-                                b,
-                                g,
-                                r
-                            )
+                        cursor_x = active_hand["x"]
+                        cursor_y = active_hand["y"]
+                        pinching = active_hand["pinching"]
 
-                            if drawing.is_drawing:
-                                drawing.end_stroke()
+                        hovered_tool = toolbox.get_tool_at(
+                            cursor_x,
+                            cursor_y,
+                            width,
+                            height
+                        )
 
-                        # -------------------------------
-                        # Actual drawing
-                        # -------------------------------
+                        color_index, selected_color = palette.get_color_at(
+                            cursor_x,
+                            cursor_y
+                        )
 
-                        else:
+                        if pinching:
 
-                            # Protected UI zone - don't start drawing inside the toolbar
-                            is_inside_ui = toolbox.is_inside_toolbar(
-                                cursor_x,
-                                cursor_y,
-                                width,
-                                height
-                            )
+                            # ----------------------------
+                            # TOOL SELECTION
+                            # ----------------------------
 
-                            selected_tool = toolbox.selected_tool
+                            if hovered_tool is not None:
 
-                            # -------------------------------
-                            # Shape tool
-                            # -------------------------------
+                                toolbox.select_tool(
+                                    hovered_tool
+                                )
 
-                            if shape_manager.is_shape_tool(selected_tool):
+                                drawing.set_tool(
+                                    hovered_tool
+                                )
 
-                                if shape_manager.current_shape is None:
+                                if drawing.is_drawing:
+                                    drawing.end_stroke()
 
-                                    if not is_inside_ui:
+                            # ----------------------------
+                            # COLOR SELECTION
+                            # ----------------------------
 
-                                        shape_manager.start_shape(
-                                            selected_tool,
-                                            cursor_x,
-                                            cursor_y,
-                                            drawing.color[:3],
-                                            drawing.brush_size
-                                        )
+                            elif color_index is not None:
 
-                                else:
+                                palette.select(
+                                    color_index
+                                )
 
-                                    shape_manager.update_shape(
-                                        cursor_x,
-                                        cursor_y
-                                    )
+                                b, g, r = selected_color
 
-                            # -------------------------------
-                            # Freehand tool
-                            # -------------------------------
+                                drawing.set_color(
+                                    b,
+                                    g,
+                                    r
+                                )
+
+                            # ----------------------------
+                            # CANVAS DRAWING
+                            # ----------------------------
 
                             else:
 
-                                if not drawing.is_drawing:
+                                is_inside_ui = toolbox.is_inside_toolbar(
+                                    cursor_x,
+                                    cursor_y,
+                                    width,
+                                    height
+                                )
 
-                                    if not is_inside_ui:
+                                selected_tool = toolbox.selected_tool
 
-                                        drawing.start_stroke(
+                                if shape_manager.is_shape_tool(selected_tool):
+
+                                    if shape_manager.current_shape is None:
+
+                                        if not is_inside_ui:
+
+                                            shape_manager.start_shape(
+                                                selected_tool,
+                                                cursor_x,
+                                                cursor_y,
+                                                drawing.color[:3],
+                                                drawing.brush_size
+                                            )
+
+                                    else:
+
+                                        shape_manager.update_shape(
                                             cursor_x,
                                             cursor_y
                                         )
 
                                 else:
 
-                                    drawing.draw(
-                                        cursor_x,
-                                        cursor_y
+                                    if not drawing.is_drawing:
+
+                                        if not is_inside_ui:
+
+                                            drawing.start_stroke(
+                                                cursor_x,
+                                                cursor_y
+                                            )
+
+                                    else:
+
+                                        drawing.draw(
+                                            cursor_x,
+                                            cursor_y
+                                        )
+
+                        else:
+
+                            # Finish freehand drawing
+                            if drawing.is_drawing:
+
+                                if len(drawing.current_points) >= 2:
+
+                                    stroke = Stroke(
+                                        drawing.current_points.copy(),
+                                        drawing.color[:3],
+                                        drawing.brush_size,
+                                        drawing.current_tool
                                     )
 
-                    else:
+                                    document.add(stroke)
 
-                        # Finish shape
-                        if shape_manager.current_shape is not None:
+                                drawing.end_stroke()
 
-                            shape_data = (
-                                shape_manager.finish_shape()
-                            )
+                            # Finish shape
+                            if shape_manager.current_shape is not None:
 
-                            if shape_data is not None:
-
-                                shape = Shape(
-                                    shape_data["type"],
-                                    shape_data["start"],
-                                    shape_data["end"],
-                                    shape_data["color"],
-                                    shape_data["width"]
+                                shape_data = (
+                                    shape_manager.finish_shape()
                                 )
 
-                                document.add(
-                                    shape
-                                )
+                                if shape_data is not None:
 
-                        # Finish freehand stroke
-                        if drawing.is_drawing:
+                                    shape = Shape(
+                                        shape_data["type"],
+                                        shape_data["start"],
+                                        shape_data["end"],
+                                        shape_data["color"],
+                                        shape_data["width"]
+                                    )
 
-                            if len(drawing.current_points) >= 2:
-
-                                stroke = Stroke(
-                                    drawing.current_points.copy(),
-                                    drawing.color[:3],
-                                    drawing.brush_size,
-                                    drawing.current_tool
-                                )
-
-                                document.add(
-                                    stroke
-                                )
-
-                            drawing.end_stroke()
+                                    document.add(shape)
 
             else:
 
-                cursor.reset()
-                pinch_detector.reset()
+                for hand_id in list(cursors.keys()):
+                    cursors[hand_id].reset()
+
+                for hand_id in list(pinch_detectors.keys()):
+                    pinch_detectors[hand_id].reset()
+
+                if two_hand_manager.active:
+
+                    left = two_hand_manager.left_point
+                    right = two_hand_manager.right_point
+
+                    if left is not None and right is not None:
+
+                        shape = Shape(
+                            "RECTANGLE",
+                            left,
+                            right,
+                            drawing.color[:3],
+                            drawing.brush_size
+                        )
+
+                        document.add(shape)
+
+                    two_hand_manager.reset()
 
                 if shape_manager.current_shape is not None:
 
@@ -695,7 +785,25 @@ def main():
             # Render live shape preview
             # -----------------------------
 
-            if shape_manager.current_shape is not None:
+            if two_hand_manager.active and toolbox.selected_tool == "RECTANGLE":
+
+                x1, y1 = two_hand_manager.left_point
+                x2, y2 = two_hand_manager.right_point
+
+                preview = Shape(
+                    "RECTANGLE",
+                    (x1, y1),
+                    (x2, y2),
+                    drawing.color[:3],
+                    drawing.brush_size
+                )
+
+                preview.draw(
+                    frame,
+                    preview=True
+                )
+
+            elif shape_manager.current_shape is not None:
 
                 current = shape_manager.current_shape
 
@@ -760,7 +868,19 @@ def main():
             # Draw cursor
             # -----------------------------
 
-            if cursor_x is not None and cursor_y is not None:
+            if len(hands_data) == 2 and two_hand_manager.active and toolbox.selected_tool == "RECTANGLE":
+
+                for h in hands_data:
+
+                    cursor.draw(
+                        frame,
+                        h["x"],
+                        h["y"],
+                        True,
+                        False
+                    )
+
+            elif cursor_x is not None and cursor_y is not None:
 
                 cursor.draw(
                     frame,
