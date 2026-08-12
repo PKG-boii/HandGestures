@@ -20,10 +20,10 @@ class Toolbox:
 
         self.selected_tool = "PEN"
 
-        self.button_size = 48
+        self.button_size = 52
         self.spacing = 8
 
-        self.toolbar_height = 72
+        self.toolbar_height = 78
 
         self.hovered_tool = None
 
@@ -51,13 +51,40 @@ class Toolbox:
             frame_width - total_width
         ) // 2
 
-        y = (
-            frame_height
-            - self.toolbar_height
-            - 25
-        )
+        # Keep toolbar at the TOP
+        y = 85
 
         return x, y
+
+    def is_inside_toolbar(
+        self,
+        x,
+        y,
+        frame_width,
+        frame_height
+    ):
+
+        toolbar_x, toolbar_y = (
+            self.calculate_layout(
+                frame_width,
+                frame_height
+            )
+        )
+
+        toolbar_width = (
+            len(self.tools)
+            * self.button_size
+            +
+            (len(self.tools) - 1)
+            * self.spacing
+            + 30
+        )
+
+        return (
+            toolbar_x <= x <= toolbar_x + toolbar_width
+            and
+            toolbar_y <= y <= toolbar_y + self.toolbar_height
+        )
 
     # ------------------------------------------------
     # Button rectangle

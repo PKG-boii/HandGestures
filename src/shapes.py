@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 import math
 
 
@@ -14,17 +15,29 @@ class Shape:
     ):
 
         self.shape_type = shape_type
-
         self.start = start
         self.end = end
-
         self.color = color
         self.width = width
 
-    def draw(self, frame):
+    def draw(
+        self,
+        frame,
+        preview=False
+    ):
 
         x1, y1 = self.start
         x2, y2 = self.end
+
+        # Preview appearance
+        width = self.width
+
+        if preview:
+
+            width = max(
+                1,
+                self.width
+            )
 
         if self.shape_type == "LINE":
 
@@ -33,7 +46,7 @@ class Shape:
                 (x1, y1),
                 (x2, y2),
                 self.color,
-                self.width,
+                width,
                 cv2.LINE_AA
             )
 
@@ -44,16 +57,16 @@ class Shape:
                 (x1, y1),
                 (x2, y2),
                 self.color,
-                self.width
+                width,
+                cv2.LINE_AA
             )
 
         elif self.shape_type == "CIRCLE":
 
             radius = int(
-                math.sqrt(
-                    (x2 - x1) ** 2
-                    +
-                    (y2 - y1) ** 2
+                math.hypot(
+                    x2 - x1,
+                    y2 - y1
                 )
             )
 
@@ -62,7 +75,7 @@ class Shape:
                 (x1, y1),
                 radius,
                 self.color,
-                self.width,
+                width,
                 cv2.LINE_AA
             )
 
@@ -79,7 +92,7 @@ class Shape:
                 (x1, y1),
                 (x2, y2),
                 self.color,
-                self.width,
+                width,
                 cv2.LINE_AA,
                 tipLength=0.15
             )
@@ -89,39 +102,51 @@ class Shape:
         x1, y1 = self.start
         x2, y2 = self.end
 
-        left = min(x1, x2)
-        right = max(x1, x2)
+        left = min(
+            x1,
+            x2
+        )
 
-        top = min(y1, y2)
-        bottom = max(y1, y2)
+        right = max(
+            x1,
+            x2
+        )
+
+        top = min(
+            y1,
+            y2
+        )
+
+        bottom = max(
+            y1,
+            y2
+        )
 
         center_x = (
             left + right
         ) // 2
 
-        points = [
-            (
-                center_x,
-                top
-            ),
-            (
-                left,
-                bottom
-            ),
-            (
-                right,
-                bottom
-            )
-        ]
+        points = np.array(
+            [
+                [
+                    center_x,
+                    top
+                ],
+                [
+                    left,
+                    bottom
+                ],
+                [
+                    right,
+                    bottom
+                ]
+            ],
+            dtype=np.int32
+        )
 
         cv2.polylines(
             frame,
-            [
-                __import__("numpy").array(
-                    points,
-                    dtype="int32"
-                )
-            ],
+            [points],
             True,
             self.color,
             self.width,

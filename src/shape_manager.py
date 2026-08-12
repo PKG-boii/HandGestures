@@ -1,10 +1,22 @@
 class ShapeManager:
 
+    SHAPE_TOOLS = {
+        "LINE",
+        "RECTANGLE",
+        "CIRCLE",
+        "TRIANGLE",
+        "ARROW"
+    }
+
     def __init__(self):
 
         self.shapes = []
 
         self.current_shape = None
+
+    def is_shape_tool(self, tool):
+
+        return tool in self.SHAPE_TOOLS
 
     def start_shape(
         self,
@@ -40,14 +52,24 @@ class ShapeManager:
     def finish_shape(self):
 
         if self.current_shape is None:
-            return
+            return None
+
+        finished = self.current_shape
 
         self.shapes.append(
-            self.current_shape
+            finished
         )
 
         self.current_shape = None
 
+        return finished
+
     def cancel_shape(self):
+
+        self.current_shape = None
+
+    def clear(self):
+
+        self.shapes.clear()
 
         self.current_shape = None

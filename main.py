@@ -16,14 +16,6 @@ from src.ui_overlay import UIOverlay
 from src.shape_manager import ShapeManager
 from src.shapes import Shape
 
-SHAPE_TOOLS = {
-    "LINE",
-    "RECTANGLE",
-    "CIRCLE",
-    "TRIANGLE",
-    "ARROW"
-}
-
 
 def draw_gesture_label(frame, landmarks, gesture, hand_number):
     """
@@ -480,37 +472,55 @@ def main():
 
                         else:
 
-                            if toolbox.selected_tool in SHAPE_TOOLS:
+                            # Protected UI zone - don't start drawing inside the toolbar
+                            is_inside_ui = toolbox.is_inside_toolbar(
+                                cursor_x,
+                                cursor_y,
+                                width,
+                                height
+                            )
 
-                                # Start shape
+                            selected_tool = toolbox.selected_tool
+
+                            # -------------------------------
+                            # Shape tool
+                            # -------------------------------
+
+                            if shape_manager.is_shape_tool(selected_tool):
+
                                 if shape_manager.current_shape is None:
 
-                                    shape_manager.start_shape(
-                                        toolbox.selected_tool,
-                                        cursor_x,
-                                        cursor_y,
-                                        drawing.color[:3],
-                                        drawing.brush_size
-                                    )
+                                    if not is_inside_ui:
+
+                                        shape_manager.start_shape(
+                                            selected_tool,
+                                            cursor_x,
+                                            cursor_y,
+                                            drawing.color[:3],
+                                            drawing.brush_size
+                                        )
 
                                 else:
 
-                                    # Update preview
                                     shape_manager.update_shape(
                                         cursor_x,
                                         cursor_y
                                     )
 
-                            else:
+                            # -------------------------------
+                            # Freehand tool
+                            # -------------------------------
 
-                                # Normal freehand drawing
+                            else:
 
                                 if not drawing.is_drawing:
 
-                                    drawing.start_stroke(
-                                        cursor_x,
-                                        cursor_y
-                                    )
+                                    if not is_inside_ui:
+
+                                        drawing.start_stroke(
+                                            cursor_x,
+                                            cursor_y
+                                        )
 
                                 else:
 
@@ -617,17 +627,22 @@ def main():
             # Render live shape preview
             # -----------------------------
 
-            if shape_manager.current_shape:
+            if shape_manager.current_shape is not None:
+
+                current = shape_manager.current_shape
 
                 preview = Shape(
-                    shape_manager.current_shape["type"],
-                    shape_manager.current_shape["start"],
-                    shape_manager.current_shape["end"],
-                    shape_manager.current_shape["color"],
-                    shape_manager.current_shape["width"]
+                    current["type"],
+                    current["start"],
+                    current["end"],
+                    current["color"],
+                    current["width"]
                 )
 
-                preview.draw(frame)
+                preview.draw(
+                    frame,
+                    preview=True
+                )
 
             # -----------------------------
             # Draw toolbox & color palette
@@ -656,6 +671,24 @@ def main():
             )
 
             # -----------------------------
+            # Draw instructions
+            # -----------------------------
+
+            cv2.putText(
+                frame,
+                "PINCH TO SELECT / DRAW",
+                (
+                    frame.shape[1] - 300,
+                    35
+                ),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.45,
+                (200, 200, 200),
+                1,
+                cv2.LINE_AA
+            )
+
+            # -----------------------------
             # Draw cursor
             # -----------------------------
 
@@ -681,7 +714,7 @@ def main():
             if key == ord("c"):
 
                 drawing.clear()
-                shape_manager.shapes.clear()
+                shape_manager.clear()
 
             elif key == ord("f"):
 
