@@ -16,6 +16,7 @@ class DrawingLayer:
 
         self.is_drawing = False
         self.last_point = None
+        self.current_points = []
 
         self.color = (0, 0, 0, 255)
 
@@ -43,6 +44,13 @@ class DrawingLayer:
             x,
             y
         )
+
+        self.current_points = [
+            (
+                x,
+                y
+            )
+        ]
 
     # -----------------------------------------
     # Draw
@@ -97,6 +105,13 @@ class DrawingLayer:
             y
         )
 
+        self.current_points.append(
+            (
+                x,
+                y
+            )
+        )
+
     # -----------------------------------------
     # End
     # -----------------------------------------
@@ -104,7 +119,6 @@ class DrawingLayer:
     def end_stroke(self):
 
         self.is_drawing = False
-
         self.last_point = None
 
     # -----------------------------------------

@@ -15,6 +15,8 @@ from src.display import DisplayManager
 from src.ui_overlay import UIOverlay
 from src.shape_manager import ShapeManager
 from src.shapes import Shape
+from src.drawing_document import DrawingDocument
+from src.stroke import Stroke
 
 
 def draw_gesture_label(frame, landmarks, gesture, hand_number):
@@ -134,6 +136,8 @@ def main():
         width,
         height
     )
+
+    document = DrawingDocument()
 
     cursor = Cursor(
         smoothing=0.35
@@ -534,10 +538,39 @@ def main():
                         # Finish shape
                         if shape_manager.current_shape is not None:
 
-                            shape_manager.finish_shape()
+                            shape_data = (
+                                shape_manager.finish_shape()
+                            )
+
+                            if shape_data is not None:
+
+                                shape = Shape(
+                                    shape_data["type"],
+                                    shape_data["start"],
+                                    shape_data["end"],
+                                    shape_data["color"],
+                                    shape_data["width"]
+                                )
+
+                                document.add(
+                                    shape
+                                )
 
                         # Finish freehand stroke
                         if drawing.is_drawing:
+
+                            if len(drawing.current_points) > 1:
+
+                                stroke = Stroke(
+                                    drawing.current_points.copy(),
+                                    drawing.color[:3],
+                                    drawing.get_tool_width(),
+                                    drawing.current_tool
+                                )
+
+                                document.add(
+                                    stroke
+                                )
 
                             drawing.end_stroke()
 
@@ -546,7 +579,35 @@ def main():
                 cursor.reset()
                 pinch_detector.reset()
 
+                if shape_manager.current_shape is not None:
+
+                    shape_data = shape_manager.finish_shape()
+
+                    if shape_data is not None:
+
+                        shape = Shape(
+                            shape_data["type"],
+                            shape_data["start"],
+                            shape_data["end"],
+                            shape_data["color"],
+                            shape_data["width"]
+                        )
+
+                        document.add(shape)
+
                 if drawing.is_drawing:
+
+                    if len(drawing.current_points) > 1:
+
+                        stroke = Stroke(
+                            drawing.current_points.copy(),
+                            drawing.color[:3],
+                            drawing.get_tool_width(),
+                            drawing.current_tool
+                        )
+
+                        document.add(stroke)
+
                     drawing.end_stroke()
 
             # -----------------------------
@@ -608,20 +669,27 @@ def main():
             )
 
             # -----------------------------
-            # Render permanent shapes
+            # Render permanent objects (strokes & shapes)
             # -----------------------------
 
-            for shape_data in shape_manager.shapes:
+            for obj in document.objects:
 
-                shape = Shape(
-                    shape_data["type"],
-                    shape_data["start"],
-                    shape_data["end"],
-                    shape_data["color"],
-                    shape_data["width"]
+                obj.draw(frame)
+
+            # -----------------------------
+            # Render current stroke preview
+            # -----------------------------
+
+            if drawing.is_drawing:
+
+                preview_stroke = Stroke(
+                    drawing.current_points,
+                    drawing.color[:3],
+                    drawing.get_tool_width(),
+                    drawing.current_tool
                 )
 
-                shape.draw(frame)
+                preview_stroke.draw(frame)
 
             # -----------------------------
             # Render live shape preview
@@ -711,10 +779,19 @@ def main():
             # Keyboard controls
             key = cv2.waitKey(1) & 0xFF
 
-            if key == ord("c"):
+            if key == ord("z"):
+
+                document.undo()
+
+            elif key == ord("y"):
+
+                document.redo()
+
+            elif key == ord("c"):
 
                 drawing.clear()
                 shape_manager.clear()
+                document.clear()
 
             elif key == ord("f"):
 
